@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Little Planets Example</title>
+    <meta charset="UTF-8" />
+  </head>
+
+  <body>
+    <div style="position: fixed; top: 0; left: 0; z-index: 1000">
+      <button type="button" onClick="window.lp.start()">
+        Play
+      </button>
+      <button type="button" onClick="window.lp.pause()">
+        Pause
+      </button>
+      <button type="button" onClick="window.lp.stop()">
+        Stop
+      </button>
+    </div>
+    <canvas id="canvas" />
+
+    <link href="styles.css" rel="stylesheet" />
+    <script src="src/examples/little-planets.js"></script>
+  </body>
+</html>
