@@ -1,19 +1,20 @@
 {
-  "name": "little-planets-lib",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.html",
+  "name": "little-planets",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "description": "Particle manager",
   "scripts": {
-    "start": "parcel index.html --open",
-    "build": "parcel build index.html"
-  },
-  "dependencies": {
-    "@babel/plugin-proposal-class-properties": "7.8.3",
-    "@babel/plugin-proposal-optional-chaining": "7.8.3"
+    "build": "turbo run build",
+    "clean": "turbo run clean",
+    "dev": "turbo run dev --no-cache --parallel --continue",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "lint": "turbo run lint",
+    "test": "turbo run test"
   },
   "devDependencies": {
-    "@babel/core": "7.2.0",
-    "parcel-bundler": "^1.6.1"
-  },
-  "keywords": []
+    "prettier": "latest",
+    "turbo": "latest"
+  }
 }

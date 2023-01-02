@@ -1,0 +1,12 @@
+
+> little-planets@1.0.0 build
+> parcel build
+
+Building...
+Bundling...
+Packaging & Optimizing...
+✨ Built in 897ms
+
+dist/index.js      9.52 KB    21ms
+dist/module.js     9.07 KB    36ms
+dist/types.d.ts     2.9 KB     8ms

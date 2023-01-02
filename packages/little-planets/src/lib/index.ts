@@ -3,11 +3,18 @@ import {
   getRandomInt,
   funcOrVal,
   getRandomCoordinates,
-  isOutOfBounds
+  isOutOfBounds,
 } from "./utils";
 
 class Viewport {
-  constructor(canvas, color) {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+
+  width: number;
+  height: number;
+  center: { x: number; y: number };
+
+  constructor(canvas: HTMLCanvasElement, color: string) {
     this.canvas = canvas;
     this.ctx = this.canvas.getContext("2d");
     this.update();
@@ -22,7 +29,7 @@ class Viewport {
     this.height = window.innerHeight;
     this.center = {
       x: this.width / 2,
-      y: this.height / 2
+      y: this.height / 2,
     };
     this.canvas.width = this.width;
     this.canvas.height = this.height;
@@ -32,7 +39,7 @@ class Viewport {
   get() {
     return {
       canvas: this.canvas,
-      ctx: this.ctx
+      ctx: this.ctx,
     };
   }
 
@@ -49,15 +56,65 @@ class Viewport {
   }
 }
 
+/**
+ * Extensible particle fields
+ */
+type ParticleFields = {
+  initX: number;
+  initY: number;
+  x: number;
+  y: number;
+  fill: string;
+  height: number;
+  width: number;
+  velocity: number;
+  angle: number;
+  rotation: number;
+  frames: number;
+  age: number;
+};
+
+type LazyParticleFields = {
+  [field in keyof ParticleFields]?:
+    | ParticleFields[field]
+    | (() => ParticleFields[field]);
+};
+
+/**
+ * Initialization config
+ */
+type ParticleConfig = LazyParticleFields & {
+  vp: Viewport;
+};
+
 // Entity that controls the rendering of itself
-export class Particle {
-  constructor(config) {
+export class Particle implements ParticleFields {
+  // configurable
+  config: LazyParticleFields;
+  initX: number;
+  initY: number;
+  x: number;
+  y: number;
+  fill: string;
+  height: number;
+  width: number;
+  velocity: number;
+  angle: number;
+  rotation: number;
+  frames: number;
+  age: number;
+
+  // private
+  ctx: CanvasRenderingContext2D;
+  canvas: HTMLCanvasElement;
+
+  constructor(config: ParticleConfig) {
     const { vp, ...initConfig } = config || {};
     this.config = initConfig;
-    this.init(config || {});
+    this.init(config);
   }
 
-  init(newConfig = {}) {
+  init(newConfig?: Partial<ParticleConfig>) {
     const config = { ...this.config, ...newConfig };
     const coords = getRandomCoordinates();
     const {
@@ -69,20 +126,13 @@ export class Particle {
       velocity = 1,
       angle = getRandomFloat(3, Math.PI * 2),
       rotation = getRandomFloat(0.01, 0.015),
-      vp
+      vp,
     } = config;
 
-    // Initialize canvas if one is not set already
-    if (!this.canvas || !this.ctx) {
-      if (!(vp instanceof Viewport)) {
-        throw new Error("Viewport is not properly initialized!");
-      }
-      const { canvas, ctx } = vp.get();
-      this.canvas = canvas;
+    if (vp && !this.ctx && !this.canvas) {
+      const { ctx, canvas } = vp.get();
       this.ctx = ctx;
-      if (!(this.canvas instanceof Element)) {
-        throw new Error("Canvas is not properly initialized!");
-      }
+      this.canvas = canvas;
     }
 
     // Set particle values based on initial config merged with new config (if provided)
@@ -108,7 +158,6 @@ export class Particle {
     throw new Error("Particle must implement update method");
   }
 }
-
 export class LightParticle extends Particle {
   update() {
     this.angle += this.rotation;
@@ -121,7 +170,8 @@ export class LightParticle extends Particle {
     if (
       !isOutOfBounds(this.x, this.y) &&
       this.frames &&
-      (this.x !== this.initX && this.y !== this.initY)
+      this.x !== this.initX &&
+      this.y !== this.initY
     ) {
       this.draw();
     } else {
@@ -161,7 +211,15 @@ export class WaveParticle extends Particle {
 
 // Manages a collection of particles, trigger their updates
 class Emitter {
-  constructor(vp) {
+  vp: Viewport;
+  initialParticles: {
+    particleInstance: typeof Particle;
+    initializationObject: Partial<ParticleConfig>;
+    numberOf: number;
+  }[] = [];
+  particles: Particle[] = [];
+
+  constructor(vp: Viewport) {
     if (!(vp instanceof Viewport)) {
       throw new Error("Viewport is not properly initialized!");
     }
@@ -169,10 +227,7 @@ class Emitter {
     this.vp = vp;
   }
 
-  initialParticles = [];
-  particles = [];
-
-  addParticle(...particles) {
+  addParticle(...particles: Particle[]) {
     for (let i = 0, len = particles.length; i < len; i++) {
       const particle = particles[i];
       if (particle instanceof Particle) {
@@ -183,23 +238,27 @@ class Emitter {
     }
   }
 
-  createParticles(particleInstance, initializationObject = {}, numberOf = 1) {
-    const { vp } = this;
-
-    const particles = [...Array(numberOf).keys()].map(
-      () => new particleInstance({ ...initializationObject, vp })
-    );
+  createParticles(
+    particleInstance: typeof Particle,
+    initializationObject: Partial<ParticleConfig> = {},
+    numberOf = 1
+  ) {
+    const particles = new Array(numberOf)
+      .fill(null)
+      .map(
+        () => new particleInstance({ ...initializationObject, vp: this.vp })
+      );
 
     this.initialParticles.push({
       particleInstance,
       initializationObject,
-      numberOf
+      numberOf,
     });
     this.addParticle(...particles);
   }
 
   update() {
-    this.particles.forEach(particle => particle.update());
+    this.particles.forEach((particle) => particle.update());
   }
 
   resetParticles() {
@@ -216,7 +275,7 @@ class Emitter {
 
 // Render all particles
 
-const initializeCanvas = canvas => {
+const initializeCanvas = (canvas: string | HTMLCanvasElement) => {
   if (canvas instanceof Element) {
     return canvas;
   }
@@ -228,26 +287,39 @@ const initializeCanvas = canvas => {
   return;
 };
 
+type LittlePlanetsParameters = {
+  canvas?: string | HTMLCanvasElement;
+  viewportBGColor?: string;
+};
+
 export class LittlePlanets {
-  constructor(props = {}) {
+  canvas: HTMLCanvasElement;
+  viewport: Viewport;
+  emitters: Emitter[];
+  canRun: boolean;
+
+  constructor(props: LittlePlanetsParameters = {}) {
     this.init(props);
   }
 
-  init({ canvas = null, viewportBGColor }) {
-    this.canvas = initializeCanvas(canvas);
-    if (this.canvas == null) {
+  init({ canvas, viewportBGColor }: LittlePlanetsParameters) {
+    let c = initializeCanvas(canvas);
+    if (!(c instanceof HTMLCanvasElement)) {
       throw new Error("Canvas is not a valid html element or element ID!");
     }
+
+    this.canvas = c;
     this.viewport = new Viewport(this.canvas, viewportBGColor);
     this.emitters = [];
+    this.canRun = true;
   }
 
   createEmitter() {
     return new Emitter(this.viewport);
   }
 
-  addEmitter(...emitters) {
-    this.emitters.push(...emitters.filter(em => em instanceof Emitter));
+  addEmitter(...emitters: Emitter[]) {
+    this.emitters.push(...emitters.filter((em) => em instanceof Emitter));
   }
 
   render() {
