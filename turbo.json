@@ -17,6 +17,11 @@
       ],
       "dependsOn": []
     },
+    "example#dev": {
+      "dependsOn": [
+        "little-planets#build"
+      ]
+    },
     "lint": {
       "dependsOn": [
         "^build"

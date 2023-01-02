@@ -9,7 +9,7 @@
   "scripts": {
     "watch": "parcel watch",
     "build": "parcel build",
-    "clean": "rimraf dist .parcel-cache",
+    "clean": "rimraf dist .parcel-cache .turbo",
     "lint": "TIMING=1 tsc --noEmit"
   },
   "devDependencies": {
